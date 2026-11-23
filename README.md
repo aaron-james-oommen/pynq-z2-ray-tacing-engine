@@ -8,10 +8,6 @@ The scene is a checkerboard ground plane under a sky gradient, two spheres, and 
 of boxes. A point light circles the figure and casts live shadows. Buttons and switches on the board
 walk the figure around and move the camera.
 
-> **Status:** verified in simulation against a floating-point Python reference model. An earlier
-> version (one shaded sphere) ran on a real PYNQ-Z2 and monitor. The animated version (walking figure,
-> shadows, controls) still needs a board run. Vivado resource use and timing have **not** been
-> measured yet, and the frame rate below is an estimate from simulation.
 
 ## Features
 
@@ -59,9 +55,6 @@ MMCM so they stay phase-locked.
 | SW0 | 0 = left/right, 1 = toward/away |
 | SW1 | camera follows the walker |
 
-LEDs: LD0 clock locked, LD1 monitor connected, LD2 auto-walk on, LD3 camera follow on.
-The engine reads the buttons once per frame and remembers presses shorter than a frame.
-See `docs/CONTROLS.md`.
 
 ## Repository layout
 
@@ -79,49 +72,7 @@ rtl/
   video/                 timing_generator, tmds_encoder, tmds_serializer
   utils/                 fixed_pkg, scene_pkg (generated)
 constraints/pynq_z2_hdmi.xdc   pin assignments (HDMI TX, clock, buttons, switches, LEDs)
-sw_prototype/            Python golden model and generators
-tb/                      self-checking testbenches
-docs/                    HDMI implementation guide, controls
-run_tests.py / .sh       regression runner
 ```
-
-`scene_pkg.sv`, `scene_rom.sv`, `box_rom.sv`, `pose_rom.sv`, `light_rom.sv` and `light_orbit_rom.sv`
-are generated from `sw_prototype/scene.py` by `sw_prototype/gen_scene_pkg.py`. Edit the scene in
-Python and regenerate; don't edit the generated files. The same `scene.py` drives the golden model,
-so the hardware and the reference always render the same scene.
-
-## Verification
-
-Every module has a self-checking testbench, and the whole renderer is compared against the Python
-golden model (`sw_prototype/raytracer.py`).
-
-| Test | What it checks |
-|---|---|
-| `tb_math` | fixed-point add, multiply, divide, square root, vector ops |
-| `tb_tmds_encoder` | TMDS encoding (DC balance, decode round trip) |
-| `tb_ray_generator` | ray directions for the centre, corners and edges |
-| `tb_sphere_intersection` | 451 vectors: hit, miss, tangent, inside, behind the camera |
-| `tb_box_intersection` | ~28,000 vectors from the golden model, all six faces |
-| `tb_lambert`, `tb_point_light` | shading and point-light vector |
-| `tb_bars` | video timing, colour bars, sync alignment |
-| `tb_motion` | frames with button input, moving camera and light vs the golden model |
-| `tb_system` | full frame through framebuffer and TMDS, checked against the golden model |
-
-Simulated frames match the golden model within 1 colour level, comparing every 4th pixel
-(`PIXEL_STRIDE=4`) to keep simulation time short; a few pixels on shape edges may differ by more.
-The shipped design renders every pixel.
-
-### Run the tests
-
-Needs Python 3 and [Icarus Verilog](https://bleyer.org/icarus/) (`iverilog`, `vvp` on PATH).
-
-```
-python run_tests.py          # all tests
-python run_tests.py --fast   # skip the full-frame render
-```
-
-On Linux or macOS, `./run_tests.sh` does the same. Run it from the project folder (the one containing
-`rtl/` and `tb/`).
 
 ## Build for the PYNQ-Z2
 
@@ -130,11 +81,6 @@ On Linux or macOS, `./run_tests.sh` does the same. Run it from the project folde
 2. Set `pynq_top` as the top module.
 3. Run synthesis, implementation and generate the bitstream.
 4. Connect the board's HDMI **OUT** port to a monitor and program the board.
-
-For a first bring-up, set `TEST_PATTERN = 1` in `pynq_top` to show colour bars. That checks the clocking,
-TMDS and serializers before the ray tracer is involved. `docs/HDMI_IMPLEMENTATION_GUIDE.md` has the
-step-by-step guide (written before the animation, controls and shadows were added, so it doesn't
-cover those).
 
 Design parameters in `pynq_top`: `ANIMATE`, `ORBIT_LIGHT`, `POINT_LIGHT`, `SHADOWS`, `TEST_PATTERN`.
 Shadows need `POINT_LIGHT = 1`.
@@ -147,10 +93,6 @@ Shadows need `POINT_LIGHT = 1`.
   Longer shadow rays would overflow the number format in the sphere unit.
 - **Figure:** boxes can't tilt, so limbs swing as stepped blocks. The walker keeps facing left or
   right when it moves toward or away from the camera.
-- **Unused module:** `rtl/geometry/closest_hit.sv` is not used; the closest-hit logic lives in the
-  render engine.
-- **Serializer:** `tmds_serializer.sv` uses Xilinx OSERDESE2 primitives, which Icarus can't simulate
-  (the tests use stubs). It has run on hardware in the earlier version.
 
 ## Roadmap
 
