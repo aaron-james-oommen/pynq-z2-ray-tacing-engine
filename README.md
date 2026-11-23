@@ -160,4 +160,4 @@ Shadows need `POINT_LIGHT = 1`.
 
 ## License
 
-Add a license of your choice (for example MIT) before publishing.
+MIT Licence
